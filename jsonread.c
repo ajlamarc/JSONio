@@ -312,6 +312,7 @@ static char * valid_fieldname(char *field, int *need_free) {
 
 static int primitive(char *js, jsmntok_t *tok, mxArray **mx) {
     mxArray *ma[2];
+    char *value = NULL;
     int sts;
     switch (js[tok->start]) {
         case 't' :
@@ -324,9 +325,13 @@ static int primitive(char *js, jsmntok_t *tok, mxArray **mx) {
             *mx =  mxCreateDoubleMatrix(0,0,mxREAL);
             break;
         default: /* '-', '0'..'9' */
-            ma[0] = mxCreateString(get_string(js, tok->start, tok->end));
-            // char const sixtyfour[3] = "%lu";
-            ma[1] = mxCreateString("%lu");
+            value = get_string(js, tok->start, tok->end);
+            ma[0] = mxCreateString(value);
+            if (strchr(value, '.') != NULL) {
+                ma[1] = mxCreateString("%f");
+            } else {
+                ma[1] = mxCreateString("%lu");
+            }
             sts = mexCallMATLAB(1, mx, 2, ma, "sscanf");
             if (sts != 0) {
                 mexErrMsgTxt("Conversion from string to uint64 failed.");
