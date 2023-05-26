@@ -8,6 +8,7 @@
 #include <string.h>
 #include "jsmn.h"
 #include "mex.h"
+#include "matrix.h"
 
 /* for MATLAB <= R2008a or GNU Octave */
 /*
@@ -61,7 +62,7 @@ static int should_convert_to_array(const mxArray *pm) {
     }
     switch (cat) {
         case mxSTRUCT_CLASS:
-        case mxDOUBLE_CLASS:
+        case mxUINT64_CLASS:
         case mxLOGICAL_CLASS:
             break;
         default:
@@ -77,7 +78,7 @@ static int should_convert_to_array(const mxArray *pm) {
         d = (mwSize *)mxGetDimensions(mxGetCell(pm, i));
         for (j = 0; j < ndims; j++) {
             if (dim[j] != d[j]) {
-                if ( !( (cat == mxDOUBLE_CLASS)
+                if ( !( (cat == mxUINT64_CLASS)
                   && (mxGetNumberOfElements(mxGetCell(pm, i)) <= 1)
                   && (mxGetNumberOfElements(mxGetCell(pm, 0)) <= 1) ) ) {
                     return 0;
@@ -96,11 +97,14 @@ static int should_convert_to_array(const mxArray *pm) {
             }
         }
     }
-    if (cat == mxDOUBLE_CLASS) {
+    if (cat == mxUINT64_CLASS) {
         for (i = 0; i < n; i++) {
             if (mxGetNumberOfElements(mxGetCell(pm, i)) == 0) {
                 mxDestroyArray(mxGetCell(pm, i));
-                mxSetCell((mxArray *)pm, i, mxCreateDoubleScalar(mxGetNaN()));
+                mxArray *value = NULL;
+                value = mxCreateDoubleMatrix(1, 1, mxREAL);
+                *mxGetUint64s(value) = mxGetNaN();
+                mxSetCell((mxArray *)pm, i, value);
             }
         }
     }
@@ -119,7 +123,7 @@ static int setup_for_cell2mat(mxArray *pm) {
     }
     cell = mxGetCell(pm, 0);
     cat  = mxGetClassID(cell);
-    if ((cat != mxDOUBLE_CLASS) && (cat != mxLOGICAL_CLASS)) {
+    if ((cat != mxUINT64_CLASS) && (cat != mxLOGICAL_CLASS)) {
         return 0;
     }
     if ((mxGetNumberOfDimensions(cell) == 2) && (mxGetM(cell) == 1)) {
@@ -307,7 +311,7 @@ static char * valid_fieldname(char *field, int *need_free) {
 }
 
 static int primitive(char *js, jsmntok_t *tok, mxArray **mx) {
-    mxArray *ma = NULL;
+    mxArray *ma[2];
     int sts;
     switch (js[tok->start]) {
         case 't' :
@@ -320,12 +324,15 @@ static int primitive(char *js, jsmntok_t *tok, mxArray **mx) {
             *mx =  mxCreateDoubleMatrix(0,0,mxREAL);
             break;
         default: /* '-', '0'..'9' */
-            ma =  mxCreateString(get_string(js, tok->start, tok->end));
-            sts = mexCallMATLAB(1, mx, 1, &ma, "str2double");
+            ma[0] = mxCreateString(get_string(js, tok->start, tok->end));
+            // char const sixtyfour[3] = "%lu";
+            ma[1] = mxCreateString("%lu");
+            sts = mexCallMATLAB(1, mx, 2, ma, "sscanf");
             if (sts != 0) {
-                mexErrMsgTxt("Conversion from string to double failed.");
+                mexErrMsgTxt("Conversion from string to uint64 failed.");
             }
-            mxDestroyArray(ma);
+            mxDestroyArray(ma[0]);
+            mxDestroyArray(ma[1]);
             break;
     }
     return 1;
@@ -360,10 +367,10 @@ static int array(char *js, jsmntok_t *tok, mxArray **mx) {
             if (perm) {
                 d = mxGetNumberOfDimensions(*mx);
                 parray[0] = *mx;
-                parray[1] = mxCreateNumericMatrix(1, d, mxDOUBLE_CLASS, mxREAL);
-                mxGetPr(parray[1])[0] = d;
+                parray[1] = mxCreateNumericMatrix(1, d, mxUINT64_CLASS, mxREAL);
+                mxGetUint64s(parray[1])[0] = d;
                 for (i=1;i<d;i++) {
-                    mxGetPr(parray[1])[i] = i;
+                    mxGetUint64s(parray[1])[i] = i;
                 }
                 sts = mexCallMATLAB(1, mx, 2, parray, "permute");
                 mxDestroyArray(parray[1]);
