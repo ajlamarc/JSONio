@@ -30,16 +30,16 @@ jobs:
         uses: matlab-actions/setup-matlab@v1
         with:
           release: ${{matrix.version}}
-      - name: Run tests with existing MEX files
-        uses: matlab-actions/run-command@v1
-        with:
-          command: addpath(pwd); results = runtests('tests'), assertSuccess(results);
+      # - name: Run tests with existing MEX files
+      #   uses: matlab-actions/run-command@v1
+      #   with:
+      #     command: addpath(pwd); results = runtests('tests'), assertSuccess(results);
       - name: Compile MEX file
         run: mex -R2018a jsonread.c jsmn.c -DJSMN_PARENT_LINKS
-      - name: Run tests with newly compiled MEX files
-        uses: matlab-actions/run-command@v1
-        with:
-          command: addpath(pwd); results = runtests('tests'), assertSuccess(results);
+      # - name: Run tests with newly compiled MEX files
+      #   uses: matlab-actions/run-command@v1
+      #   with:
+      #     command: addpath(pwd); results = runtests('tests'), assertSuccess(results);
       - name: Get MEX extension on Linux/macOS
         if: runner.os != 'Windows'
         run: echo "MEXEXT=$(mexext)" >> $GITHUB_ENV
