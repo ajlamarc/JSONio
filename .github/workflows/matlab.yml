@@ -26,7 +26,7 @@ jobs:
       #   with:
       #     command: addpath(pwd); results = runtests('tests'), assertSuccess(results);
       - name: Compile MEX file
-        run: mex -R2018a jsonread.c jsmn.c -DJSMN_PARENT_LINKS
+        run: mex -R2016b jsonread.c jsmn.c -DJSMN_PARENT_LINKS
       # - name: Run tests with newly compiled MEX files
       #   uses: matlab-actions/run-command@v1
       #   with:
